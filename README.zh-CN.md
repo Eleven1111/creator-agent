@@ -2,6 +2,8 @@
 
 [English](README.md) · **简体中文**
 
+[![CI](https://github.com/Eleven1111/creator-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/Eleven1111/creator-agent/actions/workflows/ci.yml)
+
 > **第一次用？先看 [从零开始的使用教程](TUTORIAL.md)。**
 
 一个帮你写 newsletter 和社媒内容的创作 Agent：选题、研究、提纲、评审、事实核查、多平台改编、数据复盘。它是研究助理和编辑，不是代笔；**它不会替你发布任何东西**，所有发布都由你本人在各平台客户端完成。

@@ -1,5 +1,7 @@
 # creator-agent
 
+[![CI](https://github.com/Eleven1111/creator-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/Eleven1111/creator-agent/actions/workflows/ci.yml)
+
 **English** · [简体中文](README.zh-CN.md)
 
 A command-line creative agent for newsletter and social writers. It helps with choosing topics, research, outlining, editorial review, fact checking, adapting one piece for several platforms, and monthly retrospectives.
