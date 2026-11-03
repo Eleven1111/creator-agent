@@ -1,5 +1,7 @@
 # 文档
 
+- [integrations.md](integrations.md)：接入 Claude 桌面端、ChatGPT、OpenClaw、Hermes、WorkBuddy 等 agent 终端
+
 ## handbook/ —— 创作 Agent 工作手册
 
 | 文件 | 说明 |

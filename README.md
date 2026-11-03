@@ -66,6 +66,24 @@ pip install -e '.[voice]'
 
 The default model is `claude-opus-5-5`; change it in your vault's `agent.yaml`.
 
+## Use it from your agent app
+
+creator-agent runs as an **MCP server** and ships a portable **`SKILL.md`**, so you can drive it from Claude Desktop, ChatGPT, OpenClaw, Hermes Agent, WorkBuddy or any other MCP client instead of the terminal:
+
+```bash
+pip install -e '.[mcp]'
+```
+
+```bash
+creator-agent-mcp --vault ~/creator-vault
+```
+
+```bash
+ca install-skill openclaw
+```
+
+The server exposes 25 tools (status, every pipeline stage, gate approval, draft and variant editing, publish logging, metrics, audit) and no publishing or engagement tools. Gate approvals over MCP must carry the user's verbatim statement and are listed by `ca audit`. Per-app setup, HTTP mode with a token for ChatGPT, and the security model are in [docs/integrations.md](docs/integrations.md).
+
 ## Quick start
 
 Create a vault (a folder of markdown and YAML that holds your voice, ideas and drafts):
@@ -112,6 +130,7 @@ The [tutorial](TUTORIAL.md) walks through every step from an empty machine to a 
 | Publishing (manual) | `kit`, `due`, `published` |
 | Learning loop | `metrics add/pull-x/import`, `report`, `retro`, `retro-approve`, `promote`, `recycle`, `progress` |
 | Extras | `survey design/analyze`, `blind prepare/score`, `audit` |
+| Agent apps | `mcp` (same as `creator-agent-mcp`), `install-skill` |
 
 Run `ca <command> --help` for flags.
 
@@ -132,7 +151,7 @@ Run `ca <command> --help` for flags.
 
 ## Status
 
-All phases P0–P4 of the handbook roadmap are implemented, and `pytest -q` runs 48 tests against a fake model client, a fake page fetcher and a fake Whisper module (LangGraph and SQLite are real). **It has not yet been run end to end against the live Anthropic API**, so watch the structured outputs of each stage on your first real run. Thresholds such as the review pass score, the style-drift sigma and the R1 "2× median" rule are handbook defaults and should be tuned on your own data.
+All phases P0–P4 of the handbook roadmap are implemented, plus the MCP server and skill. `pytest -q` runs 57 tests against a fake model client, a fake page fetcher and a fake Whisper module (LangGraph, SQLite and the MCP SDK, including a real stdio subprocess, are real). The per-app configuration paths for ChatGPT, OpenClaw, Hermes and WorkBuddy have not been tested inside those apps. **It has not yet been run end to end against the live Anthropic API**, so watch the structured outputs of each stage on your first real run. Thresholds such as the review pass score, the style-drift sigma and the R1 "2× median" rule are handbook defaults and should be tuned on your own data.
 
 ## Development
 

@@ -337,6 +337,24 @@ def cmd_audit(args):
         raise VaultError(f"审计发现 {len(r['violations'])} 处问题")
 
 
+def cmd_mcp(args):
+    from .mcp_server import main as mcp_main
+
+    argv = ["--vault", args.vault] if args.vault else []
+    if args.http:
+        argv += ["--http", "--host", args.host, "--port", str(args.port)]
+        for h in args.allowed_host:
+            argv += ["--allowed-host", h]
+    raise SystemExit(mcp_main(argv))
+
+
+def cmd_install_skill(args):
+    from .skill import install_skill
+
+    for p in install_skill(args.target, Path(args.dir) if args.dir else None):
+        print(f"已安装 → {p}")
+
+
 def cmd_eval(args):
     v = _vault(args)
     from .evalset import run_eval
@@ -503,6 +521,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("audit", help="P4：审计——每次发布都经人工批准、没有自动互动、平台规则 90 天内核对过")
     s.set_defaults(func=cmd_audit)
+
+    s = sub.add_parser("mcp", help="启动 MCP 服务器，供 Claude 桌面端 / ChatGPT / OpenClaw / Hermes / WorkBuddy 接入")
+    s.add_argument("--http", action="store_true")
+    s.add_argument("--host", default="127.0.0.1")
+    s.add_argument("--port", type=int, default=8765)
+    s.add_argument("--allowed-host", action="append", default=[])
+    s.set_defaults(func=cmd_mcp)
+
+    s = sub.add_parser("install-skill", help="把 SKILL.md 技能包装到 agent 终端的技能目录")
+    s.add_argument("target", choices=["claude-code", "openclaw", "hermes", "workbuddy", "agents", "zip", "dir"])
+    s.add_argument("--dir", help="target=dir 时的目标目录")
+    s.set_defaults(func=cmd_install_skill)
 
     s = sub.add_parser("eval", help="在离线测试集上检验评审能否区分好稿和差稿")
     s.set_defaults(func=cmd_eval)

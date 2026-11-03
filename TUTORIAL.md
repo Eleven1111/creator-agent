@@ -25,6 +25,7 @@
 12. [配置速查](#12-配置速查)
 13. [常见问题](#13-常见问题)
 14. [文件地图](#14-文件地图)
+15. [在 agent 终端里用](#15-在-agent-终端里用)
 
 ---
 
@@ -743,6 +744,27 @@ creator-vault/
 ├── surveys/                    读者调查
 └── runs/                       调用日志、复盘报告、flow 进度
 ```
+
+---
+
+## 15. 在 agent 终端里用
+
+上面所有步骤都可以在 Claude 桌面端、ChatGPT、OpenClaw、Hermes、WorkBuddy 这类终端里，用对话的方式完成：你说“帮我开一篇关于用户访谈的新稿子”，终端里的 agent 会调用 creator-agent 的工具，把要审的文件给你看，等你说“就选第一个角度，兴奋度 4”之后再记录闸口。
+
+```bash
+pip install -e '.[mcp]'
+```
+
+```bash
+ca install-skill openclaw
+```
+
+把技能包装到你用的终端（`claude-code`、`openclaw`、`hermes`、`workbuddy`，或用 `zip` 生成压缩包上传），再按 [docs/integrations.md](docs/integrations.md) 把 MCP 服务器加进终端的配置。
+
+两点提醒：
+
+- **闸口还是你说了算。** agent 记录闸口时必须附上你的原话，`ca audit` 会列出所有经 agent 批准的闸口。不想让 agent 代为记录，就在 `agent.yaml` 里设 `mcp.allow_gate_approval: false`。
+- **它依然不会替你发布。** 终端里的 agent 只能把发布包给你，发帖、回复、点赞都要你自己来。
 
 ---
 
