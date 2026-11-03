@@ -25,6 +25,18 @@ S6 平台适配（x_post / substack_note / x_thread / x_article / medium_story +
    → S8 指标回流（只读）→ 月度复盘 ─H7→ R1 选题进选题池
 ```
 
+## 接入 agent 终端
+
+creator-agent 可以作为 **MCP 服务器**运行，并附带一个通用的 **`SKILL.md`** 技能包，所以可以直接在 Claude 桌面端、ChatGPT、OpenClaw、Hermes、WorkBuddy 等终端里用，不必开命令行：
+
+```bash
+pip install -e '.[mcp]'
+creator-agent-mcp --vault ~/creator-vault      # stdio；--http 改用 Streamable HTTP
+ca install-skill openclaw                       # 或 claude-code / hermes / workbuddy / agents / zip / dir
+```
+
+服务器有 25 个工具：状态、各阶段、闸口记录、改稿、发布记录、指标、审计。**没有任何发布或互动工具。** 通过 MCP 记录闸口时必须附上作者原话，`ca audit` 会列出来；也可以在 `agent.yaml` 设 `mcp.allow_gate_approval: false`，只允许在命令行批。各终端的配置方法、ChatGPT 需要的 HTTP 模式与 Token、安全设计见 [docs/integrations.md](docs/integrations.md)。
+
 ## 安装
 
 ```bash

@@ -20,6 +20,8 @@ review:
   briars_samples: 3              # P3：拔刺独立采样次数，至少 2 次命中才进报告
   style_drift_sigma: 2.0         # P3：风格特征偏离往期均值超过 2σ 视为漂移
   style_min_docs: 5              # 往期文章（archive/ + voice/exemplars/）少于 5 篇时不做漂移检测
+mcp:
+  allow_gate_approval: true      # false：agent 终端不能代为记录闸口，必须在命令行 ca approve
 research:
   mode: single                   # single | multi（编排者-工作者，约 15 倍 token；离线测试证明有提升再开）
 """

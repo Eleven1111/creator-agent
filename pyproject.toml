@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "creator-agent"
-version = "0.1.0"
+version = "0.2.0"
 description = "多平台创作 Agent 的 P1 MVP：母站 Substack + X 单帖 / Substack Notes 辐条，全部人工发布"
 requires-python = ">=3.10"
 license = "MIT"
@@ -19,12 +19,14 @@ dependencies = [
 dev = ["pytest>=8"]
 graph = ["langgraph>=1.2", "langgraph-checkpoint-sqlite>=3.0"]   # P4：ca flow
 voice = ["faster-whisper>=1.0"]                                   # P4：ca interview --audio
+mcp = ["mcp>=2.3", "uvicorn>=0.30"]                               # 接入 agent 终端：creator-agent-mcp
 
 [project.scripts]
 ca = "creator_agent.cli:main"
+creator-agent-mcp = "creator_agent.mcp_server:main"
 
 [tool.setuptools.packages.find]
 include = ["creator_agent*"]
 
 [tool.setuptools.package-data]
-creator_agent = ["templates/**/*"]
+creator_agent = ["templates/**/*", "skill/**/*"]

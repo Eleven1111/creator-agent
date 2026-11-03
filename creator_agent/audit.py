@@ -115,7 +115,14 @@ def audit(vault: Vault) -> dict:
         missing = [g for g in ("H1", "H2", "H3", "H4", "H5") if g not in meta["gates"]]
         if missing:
             violations.append({"variant": vid, "rule": "all_gates_passed", "detail": missing})
+    mcp_approvals = []
+    for m in vault.hubs():
+        for g, rec in m.get("gates", {}).items():
+            if rec.get("channel") == "mcp":
+                mcp_approvals.append({"hub": m["id"], "gate": g, "at": rec.get("at"),
+                                      "user_statement": rec.get("user_statement")})
     stale = vault.stale_platform_rules()
     if stale:
         violations.append({"variant": None, "rule": "platform_rules_verified_90d", "detail": stale})
-    return {"published_variants": published, "violations": violations, "ok": not violations}
+    return {"published_variants": published, "violations": violations, "ok": not violations,
+            "mcp_approvals": mcp_approvals}
