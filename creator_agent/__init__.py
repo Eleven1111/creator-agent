@@ -4,4 +4,4 @@
 S5 编辑评审 → H4 定稿 → S6 平台适配（x_post / substack_note）→ H5 → 人工发布。
 """
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"

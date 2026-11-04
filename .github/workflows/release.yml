@@ -1,0 +1,41 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  mcpb:
+    name: build Claude Desktop extension
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[dev,mcp]'
+      - name: Test
+        run: pytest -q
+      - name: Build .mcpb and skill zip
+        run: |
+          ca build-mcpb --out dist
+          ca install-skill zip --dir dist
+          ls -l dist
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: creator-agent-extension
+          path: dist/*
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/*.mcpb dist/creator-agent-skill.zip --generate-notes --title "$GITHUB_REF_NAME"

@@ -70,7 +70,9 @@ The default model is `claude-opus-5-5`; change it in your vault's `agent.yaml`.
 
 ## Use it from your agent app
 
-creator-agent runs as an **MCP server** and ships a portable **`SKILL.md`**, so you can drive it from Claude Desktop, ChatGPT, OpenClaw, Hermes Agent, WorkBuddy or any other MCP client instead of the terminal:
+**Claude Desktop, one click:** download `creator-agent-<version>.mcpb` from [Releases](https://github.com/Eleven1111/creator-agent/releases) (or run `ca build-mcpb`), double-click it, and pick a vault folder. Python and dependencies are installed by Claude Desktop via uv. The Anthropic API key is optional: without it the extension runs in **host-model mode**, where the Claude you are chatting with completes each model step and hands it back through `submit_model_output`, so it runs on your Claude plan instead of separate API billing.
+
+For other apps, creator-agent runs as an **MCP server** and ships a portable **`SKILL.md`**, so you can drive it from Claude Desktop, ChatGPT, OpenClaw, Hermes Agent, WorkBuddy or any other MCP client instead of the terminal:
 
 ```bash
 pip install -e '.[mcp]'
@@ -84,7 +86,7 @@ creator-agent-mcp --vault ~/creator-vault
 ca install-skill openclaw
 ```
 
-The server exposes 25 tools (status, every pipeline stage, gate approval, draft and variant editing, publish logging, metrics, audit) and no publishing or engagement tools. Gate approvals over MCP must carry the user's verbatim statement and are listed by `ca audit`. Per-app setup, HTTP mode with a token for ChatGPT, and the security model are in [docs/integrations.md](docs/integrations.md).
+The server exposes 27 tools (status, every pipeline stage, gate approval, draft and variant editing, publish logging, metrics, audit) and no publishing or engagement tools. Gate approvals over MCP must carry the user's verbatim statement and are listed by `ca audit`. Per-app setup, HTTP mode with a token for ChatGPT, and the security model are in [docs/integrations.md](docs/integrations.md).
 
 ## Quick start
 
@@ -132,7 +134,7 @@ The [tutorial](TUTORIAL.md) walks through every step from an empty machine to a 
 | Publishing (manual) | `kit`, `due`, `published` |
 | Learning loop | `metrics add/pull-x/import`, `report`, `retro`, `retro-approve`, `promote`, `recycle`, `progress` |
 | Extras | `survey design/analyze`, `blind prepare/score`, `audit` |
-| Agent apps | `mcp` (same as `creator-agent-mcp`), `install-skill` |
+| Agent apps | `mcp` (same as `creator-agent-mcp`), `install-skill`, `build-mcpb` |
 
 Run `ca <command> --help` for flags.
 
@@ -153,7 +155,7 @@ Run `ca <command> --help` for flags.
 
 ## Status
 
-All phases P0–P4 of the handbook roadmap are implemented, plus the MCP server and skill. `pytest -q` runs 57 tests against a fake model client, a fake page fetcher and a fake Whisper module (LangGraph, SQLite and the MCP SDK, including a real stdio subprocess, are real). The per-app configuration paths for ChatGPT, OpenClaw, Hermes and WorkBuddy have not been tested inside those apps. **It has not yet been run end to end against the live Anthropic API**, so watch the structured outputs of each stage on your first real run. Thresholds such as the review pass score, the style-drift sigma and the R1 "2× median" rule are handbook defaults and should be tuned on your own data.
+All phases P0–P4 of the handbook roadmap are implemented, plus the MCP server, the skill, the Claude Desktop extension and host-model mode. `pytest -q` runs 65 tests against a fake model client, a fake page fetcher and a fake Whisper module (LangGraph, SQLite and the MCP SDK, including a real stdio subprocess, are real). The extension launch was simulated with the same `uv run` command on Linux; the extension and the per-app configuration paths for ChatGPT, OpenClaw, Hermes and WorkBuddy have not been tested inside those apps. **It has not yet been run end to end against the live Anthropic API**, so watch the structured outputs of each stage on your first real run. Thresholds such as the review pass score, the style-drift sigma and the R1 "2× median" rule are handbook defaults and should be tuned on your own data.
 
 ## Development
 

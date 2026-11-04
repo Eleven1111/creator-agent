@@ -17,7 +17,11 @@ license: MIT
 - **优先用 MCP 工具**（服务器名 `creator-agent`）：`vault_status`、`new_hub`、`run_angles`、`approve_gate` 等。
 - **没有 MCP 时用命令行** `ca`（需要终端执行权限）：工具名和命令一一对应，例如 `run_angles` ↔ `ca angles <hub_id>`，
   `approve_gate` ↔ `ca approve <hub_id> H1 --angle ... --excitement ... --edge ...`。`ca --help` 看全部命令。
-- 知识库目录由环境变量 `CA_VAULT` 指定。需要模型的阶段要求服务器环境里有 `ANTHROPIC_API_KEY`。
+- 知识库目录由环境变量 `CA_VAULT` 指定。
+- **两种模型后端**（`model_backend` 可查）：服务器配了 `ANTHROPIC_API_KEY` 时，需要模型的阶段由服务器调用 API；
+  没配时是**宿主模型模式**：`run_*` 返回“【待你完成的模型任务】”，你按其中的系统指令完成，用 `submit_model_output` 交回，
+  服务器自动继续，直到返回最终文件。这些内部任务不用逐个向作者汇报，但要只依据给定材料、需要联网时用你的搜索工具，
+  没有联网能力就如实写明，绝不编造来源。
 
 ## 一篇稿子的流程
 

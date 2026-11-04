@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import functools
 import hmac
+import json
 import os
 import sys
 from pathlib import Path
@@ -37,7 +38,11 @@ INSTRUCTIONS = """creator-agent 是写作者的研究助理和编辑，不是代
    并把作者的原话放进 user_statement。H1 的兴奋度（excitement）和 edge 只能由作者说出，不能替作者编。
 2. 不编造事实、数字、引语或作者的经历。缺的地方写 [TK: ...]。
 3. 不发布、不互动。发布包在 publish_kit.md 里，由作者本人复制到各平台。
-4. 工具返回的错误信息是中文的操作提示，照着提示做，不要绕过。"""
+4. 工具返回的错误信息是中文的操作提示，照着提示做，不要绕过。
+5. 宿主模型模式（服务器没配 ANTHROPIC_API_KEY 时）：run_* 工具会返回“【待你完成的模型任务】”。请按其中的系统指令和输入
+   完成任务（只依据给定材料；需要联网时用你的搜索工具，没有就如实说明，绝不编造来源），然后调用 submit_model_output 交回；
+   服务器会自动继续，可能再返回下一个任务，直到拿到最终结果。这些任务是流程内部步骤，不需要逐个向作者汇报，
+   但最终结果（angles.md、research.md、review.md 等）要给作者看。"""
 
 ALLOWED_FILES = {
     "angles.md", "research.md", "research_notes.md", "outline.md", "cards.md", "draft.md", "draft_agent.md",
@@ -52,7 +57,22 @@ def _vault() -> Vault:
     return v
 
 
-def _llm(v: Vault) -> LLM:
+def llm_backend(v: Vault) -> str:
+    """auto（默认）：有 ANTHROPIC_API_KEY 用 API，没有就用宿主模型；也可在 agent.yaml 的 llm.backend 或环境变量
+    CA_LLM_BACKEND 里固定为 anthropic / host。"""
+    choice = os.environ.get("CA_LLM_BACKEND") or (v._yaml("agent.yaml").get("llm") or {}).get("backend", "auto")
+    if choice == "auto":
+        return "anthropic" if os.environ.get("ANTHROPIC_API_KEY", "").strip() else "host"
+    if choice not in ("anthropic", "host"):
+        raise VaultError(f"llm.backend 只能是 auto / anthropic / host，现在是 {choice}")
+    return choice
+
+
+def _llm(v: Vault):
+    if llm_backend(v) == "host":
+        from .host_llm import HostLLM
+
+        return HostLLM(v.root, v.llm_config())
     return LLM(v.llm_config(), log_dir=v.root / "runs/logs")
 
 
@@ -65,23 +85,34 @@ def build_server(vault_factory=_vault, llm_factory=_llm):
     from mcp.server.mcpserver.exceptions import ToolError
     from mcp.types import ToolAnnotations
 
-    server = MCPServer("creator-agent", instructions=INSTRUCTIONS, version="0.2.0")
+    server = MCPServer("creator-agent", instructions=INSTRUCTIONS, version="0.3.0")
     READ = ToolAnnotations(read_only_hint=True, destructive_hint=False, open_world_hint=False)
     LOCAL = ToolAnnotations(read_only_hint=False, destructive_hint=False, open_world_hint=False)
     MODEL = ToolAnnotations(read_only_hint=False, destructive_hint=False, open_world_hint=True)
 
+    from .host_llm import HostTaskPending, render_task
+
+    wrapped_tools: dict[str, Any] = {}  # 工具名 → 带错误处理的函数，供 submit_model_output 续跑
+
     def tool(annotations):
-        """注册工具，并把业务错误转成 ToolError，让中文提示原样回到模型。"""
+        """注册工具，并把业务错误转成 ToolError，让中文提示原样回到模型。
+        宿主模型模式下，阶段需要模型时返回一个待办任务，宿主模型完成后用 submit_model_output 交回。"""
         def deco(fn):
             @functools.wraps(fn)
             def wrapped(*a, **kw):
                 try:
                     return fn(*a, **kw)
+                except HostTaskPending as p:
+                    task = dict(p.task, resume={"tool": fn.__name__, "args": kw})
+                    path = vault_factory().root / "runs" / "host_tasks" / f"{task['task_id']}.json"
+                    path.write_text(json.dumps(task, ensure_ascii=False, indent=2), encoding="utf-8")
+                    return render_task(task, fn.__name__)
                 except (VaultError, LLMError, FileNotFoundError, ValueError) as e:
                     msg = str(e)
                     if "ca approve" in msg:
                         msg += "（在 agent 终端里：把待审文件给作者看，作者明确同意后调用 approve_gate）"
                     raise ToolError(msg) from e
+            wrapped_tools[fn.__name__] = wrapped
             return server.tool(annotations=annotations)(wrapped)
         return deco
 
@@ -92,7 +123,7 @@ def build_server(vault_factory=_vault, llm_factory=_llm):
         v = vault_factory()
         stale = v.stale_platform_rules()
         if not hub_id:
-            return {"vault": str(v.root), "stale_platform_rules": stale,
+            return {"vault": str(v.root), "model_backend": llm_backend(v), "stale_platform_rules": stale,
                     "hubs": [{"id": m["id"], "status": m["status"], "gates": sorted(m["gates"]),
                               "idea": m["idea"]} for m in v.hubs()]}
         m = v.meta(hub_id)
@@ -325,6 +356,29 @@ def build_server(vault_factory=_vault, llm_factory=_llm):
         build_retro(v, llm_factory(v), month)
         return (v.root / "runs" / f"retro_{month}.md").read_text(encoding="utf-8")
 
+    @tool(LOCAL)
+    def submit_model_output(task_id: str, output: str) -> str:
+        """宿主模型模式：交回一个待办模型任务的结果（JSON 任务交 JSON 文本，文本任务交 markdown）。
+        服务器会校验格式，然后自动继续原来的工具；可能返回下一个待办任务，照做直到拿到最终结果。"""
+        from .host_llm import HostLLM
+
+        v = vault_factory()
+        host = HostLLM(v.root, v.llm_config())
+        task = host.task(task_id)
+        resume = task.get("resume")
+        host.submit(task_id, output)
+        if not resume or resume["tool"] not in wrapped_tools:
+            return "已保存。请重新调用原来的工具继续。"
+        return wrapped_tools[resume["tool"]](**resume["args"])
+
+    @tool(READ)
+    def model_backend() -> dict[str, Any]:
+        """查看需要模型的阶段由谁来做：anthropic（服务器调用 Anthropic API）或 host（交给你，即当前对话的模型）。"""
+        v = vault_factory()
+        b = llm_backend(v)
+        return {"backend": b, "note": "host 模式下，run_* 工具会返回待办任务，你完成后用 submit_model_output 交回"
+                if b == "host" else "使用服务器配置的 ANTHROPIC_API_KEY"}
+
     @server.prompt()
     def creator_workflow() -> str:
         """creator-agent 的完整工作流和硬规则（给 agent 终端的系统提示）。"""
@@ -391,11 +445,22 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--http", action="store_true", help="改用 Streamable HTTP（默认 127.0.0.1:8765/mcp）")
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8765)
+    p.add_argument("--init-if-missing", action="store_true",
+                   help="知识库目录不存在或为空时自动创建（Claude 桌面端扩展安装后首次启动用）")
     p.add_argument("--allowed-host", action="append", default=[],
                    help="经隧道暴露时，允许的外部 Host（如 abc.trycloudflare.com），可重复")
     args = p.parse_args(argv)
     if args.vault:
         os.environ["CA_VAULT"] = args.vault
+    # Claude 桌面端扩展里，可选字段留空时可能传空串或未替换的 ${user_config.*}；都当作没填
+    for k in ("ANTHROPIC_API_KEY", "X_BEARER_TOKEN"):
+        if os.environ.get(k, "").strip().startswith("${") or not os.environ.get(k, "x").strip():
+            os.environ.pop(k, None)
+    if args.init_if_missing:
+        root = Path(os.environ.get("CA_VAULT", "creator-vault")).expanduser()
+        if not (root / "agent.yaml").exists() and (not root.exists() or not any(root.iterdir())):
+            Vault.init(root)
+            print(f"已创建知识库 {root}", file=sys.stderr)
     try:
         _vault()
     except VaultError as e:

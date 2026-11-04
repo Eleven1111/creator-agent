@@ -751,6 +751,10 @@ creator-vault/
 
 上面所有步骤都可以在 Claude 桌面端、ChatGPT、OpenClaw、Hermes、WorkBuddy 这类终端里，用对话的方式完成：你说“帮我开一篇关于用户访谈的新稿子”，终端里的 agent 会调用 creator-agent 的工具，把要审的文件给你看，等你说“就选第一个角度，兴奋度 4”之后再记录闸口。
 
+**Claude 桌面端最简单：** 从 [Releases](https://github.com/Eleven1111/creator-agent/releases) 下载 `.mcpb` 扩展，双击安装，选一个知识库文件夹。不用装 Python，也不用填 API key。不填 key 时，研究、评审这些步骤由对话里的 Claude 完成：它会一步步处理工具交给它的任务，你只需要看最后的结果、在闸口表态。想要评审更客观，就开一个新对话再评审，或者在扩展设置里填上 API key。
+
+其他终端：
+
 ```bash
 pip install -e '.[mcp]'
 ```
