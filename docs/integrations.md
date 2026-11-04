@@ -42,17 +42,46 @@ which creator-agent-mcp
 | 变量 | 必须？ | 说明 |
 |---|---|---|
 | `CA_VAULT` | 必须（或用 `--vault` 参数） | 知识库目录 |
-| `ANTHROPIC_API_KEY` | 跑模型阶段时必须 | angles / research / outline / draft B / review / adapt / interview / retro 需要；查看状态、lint、记录闸口、改稿、审计等不需要 |
+| `ANTHROPIC_API_KEY` | 可选 | 填了：需要模型的阶段由服务器调用 Anthropic API；不填：宿主模型模式，见下 |
 | `X_BEARER_TOKEN` | 可选 | 只用于 `pull_x_metrics` 读取公开指标 |
 | `CA_MCP_TOKEN` | HTTP 模式对外暴露时必须 | 见第 2 节 |
 
-> **为什么终端自己有模型，还要 Anthropic API key？** 研究、评审、改编这些阶段需要联网搜索、结构化输出和带锚点的评分，是在服务器里调用 Anthropic API 完成的，不依赖终端用的是哪个模型。如果不想配 key，终端里的模型照样能用不调模型的那些工具：状态查看、lint、X 规则检查、闸口记录、改稿、发布记录、指标、审计。
+### 两种模型后端
+
+选题、研究、提纲、评审、改编这些阶段需要模型。谁来做，取决于有没有 Anthropic API key：
+
+| 后端 | 什么时候用 | 费用 | 特点 |
+|---|---|---|---|
+| **anthropic** | 服务器环境里有 `ANTHROPIC_API_KEY` | Anthropic API 单独计费 | 评审在干净语境里做，不受对话影响；研究用服务器端联网搜索；可开多 Agent 并行研究 |
+| **host（宿主模型）** | 没有 key（默认自动切换） | 用你终端的订阅额度，不另付 API 费用 | `run_*` 返回“待你完成的模型任务”，由终端里的模型完成后用 `submit_model_output` 交回，服务器自动继续，直到返回最终文件 |
+
+宿主模型模式的三点代价，请心里有数：
+
+- **评审不再是干净语境。** 终端里的模型可能看过你们之前的对话，甚至帮你改过稿。评审提示词会要求它只依据给定材料，但这只能缓解，不能根除。要更客观的评审，就开一个新对话再跑 `run_review`，或者配上 API key。
+- **研究质量取决于终端有没有联网。** 没有联网能力时，它必须如实写“无法联网”，不能编造来源。S5 的引语回原网页逐字比对是最后一道防线：编造的引语在原网页上找不到，过不了核查。
+- **步骤多、会慢一些。** 一次评审要交接 8 次左右，每次都是终端模型的一轮生成。
+
+可以在 `agent.yaml` 里固定后端（`llm: {backend: anthropic}` 或 `host`），也可以设环境变量 `CA_LLM_BACKEND`。
 
 ---
 
 ## 1. Claude 桌面端
 
-**MCP。** 编辑配置文件，没有就新建：
+### 方式 A：一键安装扩展（推荐）
+
+1. 下载 `creator-agent-<版本>.mcpb`：从 [Releases](https://github.com/Eleven1111/creator-agent/releases) 下载，或者自己打包（`ca build-mcpb`，生成在 `dist/`）。
+2. 双击这个文件（或者在 Claude 桌面端的 设置 → 扩展 里安装）。
+3. 在弹出的设置里：
+   - **知识库文件夹**：选一个空文件夹，或者用默认的“文稿/creator-vault”。首次启动时会自动建好知识库；如果选的文件夹里已经有别的东西、又不是知识库，会拒绝启动，不会往里乱写。
+   - **Anthropic API key**：可以留空。留空就是宿主模型模式，由 Claude 桌面端里的 Claude 完成模型任务。
+   - **X Bearer Token**：可选，只用来读取已发布帖子的公开指标。
+4. 启用扩展，在新对话里说“用 creator-agent 看一下知识库状态”。
+
+扩展用的是 MCPB 规范 v0.4 的 `uv` 类型：包里只有源码，Python 和依赖由 Claude 桌面端用 uv 自动安装，你的电脑上**不需要先装 Python**。这是规范里的说法，我在 Linux 上用同样的 `uv run` 命令模拟过安装和启动，但没有在真实的 Claude 桌面端里装过【待核实】。uv 类型在规范里标为 v0.4 新增，较旧的 Claude 桌面端版本可能不支持；装不上的话，升级 Claude 桌面端或改用方式 B。
+
+### 方式 B：手动配置
+
+编辑配置文件，没有就新建：
 
 - macOS：`~/Library/Application Support/Claude/claude_desktop_config.json`
 - Windows：`%APPDATA%\Claude\claude_desktop_config.json`
@@ -62,25 +91,24 @@ which creator-agent-mcp
   "mcpServers": {
     "creator-agent": {
       "command": "/绝对路径/creator-agent-mcp",
-      "args": ["--vault", "/Users/你/creator-vault"],
+      "args": ["--vault", "/Users/你/creator-vault", "--init-if-missing"],
       "env": {
-        "ANTHROPIC_API_KEY": "sk-ant-...",
-        "X_BEARER_TOKEN": ""
+        "ANTHROPIC_API_KEY": ""
       }
     }
   }
 }
 ```
 
-保存后**完全退出**并重启 Claude 桌面端。在对话的工具菜单里能看到 creator-agent 的工具就说明连上了。
+`ANTHROPIC_API_KEY` 留空就是宿主模型模式。保存后**完全退出**并重启 Claude 桌面端。
 
-**技能包。** 生成 zip：
+### 技能包（两种方式都建议装）
 
 ```bash
 ca install-skill zip
 ```
 
-在 Claude 的设置里找到 Skills（技能）上传 `creator-agent-skill.zip`。菜单位置以当前版本为准【待核实】。用 Claude Code 的话，直接装到 `~/.claude/skills`：
+在 Claude 的设置里找到 Skills（技能）上传 `creator-agent-skill.zip`，Releases 里也有现成的。菜单位置以当前版本为准【待核实】。用 Claude Code 的话，直接装到 `~/.claude/skills`：
 
 ```bash
 ca install-skill claude-code
@@ -218,13 +246,14 @@ ca install-skill workbuddy
 
 creator-agent ships an **MCP server** (`creator-agent-mcp`, stdio by default, Streamable HTTP with `--http`) and a portable **`SKILL.md`** (`ca install-skill claude-code | openclaw | hermes | workbuddy | agents | zip | dir`).
 
-- **Claude Desktop:** add an `mcpServers.creator-agent` entry with the absolute path to `creator-agent-mcp`, `--vault <dir>` and `ANTHROPIC_API_KEY` in `env`; upload the skill zip under Skills.
+- **Claude Desktop:** install the one-click extension `creator-agent-<version>.mcpb` (from Releases or `ca build-mcpb`; MCPB v0.4 `uv` type, so no Python install is needed), pick a vault folder, and optionally paste an Anthropic API key. Or add an `mcpServers.creator-agent` entry by hand. Upload the skill zip under Skills.
+- **No API key needed:** without `ANTHROPIC_API_KEY` the server runs in *host-model mode*: `run_*` tools return a task that the app's own model completes and hands back with `submit_model_output`, and the server continues until the stage finishes. Trade-offs: the review is no longer in a clean context, research depends on the app having web access (it must say so instead of inventing sources), and stages take more round-trips.
 - **ChatGPT:** run `--http` with `CA_MCP_TOKEN`, expose it through an HTTPS tunnel, pass `--allowed-host <tunnel host>`, and add a custom connector pointing at `https://<host>/mcp?token=<token>` (prefer an `Authorization: Bearer` header if the connector supports one). Paste the SKILL.md body into project instructions.
 - **OpenClaw:** `mcp.servers.creator-agent` in `openclaw.json`; skills in `~/.openclaw/skills`.
 - **Hermes Agent:** `mcp_servers.creator-agent` in `~/.hermes/config.yaml`, with secrets listed explicitly under `env`; skills in `~/.hermes/skills`.
 - **WorkBuddy:** add a local MCP server in its connector settings; skills in `~/.workbuddy/skills`.
 
-Paths and menus for ChatGPT, OpenClaw, Hermes and WorkBuddy come from November 2026 searches, partly third-party sources, and may differ in your version. Model-backed stages need `ANTHROPIC_API_KEY` on the server; deterministic tools work without it. The server exposes no publishing or engagement tools, gate approvals require the user's verbatim statement and are listed by `ca audit`, and `mcp.allow_gate_approval: false` restricts approvals to the CLI.
+Paths and menus for ChatGPT, OpenClaw, Hermes and WorkBuddy come from November 2026 searches, partly third-party sources, and may differ in your version.  The server exposes no publishing or engagement tools, gate approvals require the user's verbatim statement and are listed by `ca audit`, and `mcp.allow_gate_approval: false` restricts approvals to the CLI.
 
 ### Sources
 

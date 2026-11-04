@@ -355,6 +355,12 @@ def cmd_install_skill(args):
         print(f"已安装 → {p}")
 
 
+def cmd_build_mcpb(args):
+    from .mcpb import build
+
+    print(f"Claude 桌面端扩展 → {build(Path(args.out) if args.out else None)}")
+
+
 def cmd_eval(args):
     v = _vault(args)
     from .evalset import run_eval
@@ -533,6 +539,10 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("target", choices=["claude-code", "openclaw", "hermes", "workbuddy", "agents", "zip", "dir"])
     s.add_argument("--dir", help="target=dir 时的目标目录")
     s.set_defaults(func=cmd_install_skill)
+
+    s = sub.add_parser("build-mcpb", help="打包 Claude 桌面端扩展（.mcpb），双击即可安装")
+    s.add_argument("--out", help="输出目录（默认 dist/）")
+    s.set_defaults(func=cmd_build_mcpb)
 
     s = sub.add_parser("eval", help="在离线测试集上检验评审能否区分好稿和差稿")
     s.set_defaults(func=cmd_eval)

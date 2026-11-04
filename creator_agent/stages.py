@@ -75,6 +75,8 @@ def s2_research(vault: Vault, llm: LLM, hub_id: str) -> dict:
                     user=f"论点：{angle['thesis']}\n大想法：{angle['one_big_idea']}",
                     schema=P.SUBQ_SCHEMA)["questions"]
     mode = vault.research_mode()
+    if getattr(llm, "backend", "anthropic") == "host":
+        mode = "single"  # 宿主模型一次只能处理一个任务，不并行
     if mode == "multi":
         from .research import run_workers
 
