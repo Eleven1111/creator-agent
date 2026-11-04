@@ -38,4 +38,10 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/*.mcpb dist/creator-agent-skill.zip --generate-notes --title "$GITHUB_REF_NAME"
+        # 标签可能是 git push 推上来的（还没有 Release），也可能是在网页上新建 Release 时一并创建的（Release 已存在）
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/*.mcpb dist/creator-agent-skill.zip --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/*.mcpb dist/creator-agent-skill.zip --generate-notes --title "$GITHUB_REF_NAME"
+          fi
